@@ -46,3 +46,4 @@ function ensure_user() {
         exit;
     }
 }
+
