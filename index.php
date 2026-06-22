@@ -28,7 +28,7 @@ if (!empty($_SESSION['user'])) {
     </form>
     <p>Belum punya akun? <a href="register.php">Daftar sebagai User</a></p>
     <div class="note">
-        <strong>Admin default:</strong> admin / admin123
+        <strong></strong>
     </div>
 </div>
 </body>
