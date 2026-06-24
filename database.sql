@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS lapangan (
   name VARCHAR(100) NOT NULL,
   price DECIMAL(10,2) NOT NULL,
   description TEXT NULL,
+  image VARCHAR(255) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   booking_time TIME NOT NULL,
   duration INT NOT NULL,
   total_price DECIMAL(12,2) NOT NULL,
+  payment_method VARCHAR(50) NOT NULL DEFAULT 'qris',
   booking_status ENUM('pending','confirmed','canceled') NOT NULL DEFAULT 'pending',
   payment_status ENUM('unpaid','paid') NOT NULL DEFAULT 'unpaid',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -37,6 +39,6 @@ CREATE TABLE IF NOT EXISTS bookings (
 INSERT IGNORE INTO users (name, username, password, role) VALUES
 ('Admin Futsal', 'admin', '$2y$10$WFrj1RXGeR.0Fnl69Al0xeN8Y3/bAjEHZL8MQFm2kLB0bk7LTG7/q', 'admin');
 
-INSERT IGNORE INTO lapangan (name, price, description) VALUES
-('Lapangan A', 150000, 'Lapangan futsal standar 5 orang'),
-('Lapangan B', 170000, 'Lapangan futsal premium dengan lighting');
+INSERT IGNORE INTO lapangan (name, price, description, image) VALUES
+('Lapangan A', 150000, 'Lapangan futsal standar 5 orang', 'https://images.unsplash.com/photo-1505842465776-3bd2144b5caa?auto=format&fit=crop&w=800&q=80'),
+('Lapangan B', 170000, 'Lapangan futsal premium dengan lighting', 'https://images.unsplash.com/photo-1542736667-069246bdbc82?auto=format&fit=crop&w=800&q=80');

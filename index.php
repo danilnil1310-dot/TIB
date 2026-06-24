@@ -16,19 +16,29 @@ if (!empty($_SESSION['user'])) {
     <title>Login Futsal Booking</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="login-page">
 <div class="container">
-    <h1>Login Futsal Booking</h1>
-    <form action="login.php" method="post">
-        <label>Username</label>
-        <input type="text" name="username" required>
-        <label>Password</label>
-        <input type="password" name="password" required>
-        <button type="submit">Login</button>
-    </form>
-    <p>Belum punya akun? <a href="register.php">Daftar sebagai User</a></p>
-    <div class="note">
-        <strong></strong>
+    <div class="login-card">
+        <div class="login-panel">
+            <div class="login-copy">
+                <span class="eyebrow">Akses Cepat</span>
+                <h1>Login Futsal Booking</h1>
+                <p class="subtitle">Masuk untuk pesan lapangan futsal sekarang.</p>
+            </div>
+            <div class="field-image">
+                <img src="https://images.unsplash.com/photo-1505842465776-3bd2144b5caa?auto=format&fit=crop&w=1200&q=80" alt="Lapangan futsal">
+            </div>
+        </div>
+        <div class="login-form-card">
+            <form action="login.php" method="post">
+                <label>Username</label>
+                <input type="text" name="username" required>
+                <label>Password</label>
+                <input type="password" name="password" required>
+                <button type="submit">Login</button>
+            </form>
+            <p class="register-link">Belum punya akun? <a href="register.php">Daftar sekarang</a></p>
+        </div>
     </div>
 </div>
 </body>

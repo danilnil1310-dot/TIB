@@ -9,11 +9,16 @@ $lapangan_id = intval($_POST['lapangan_id']);
 $booking_date = $_POST['booking_date'];
 $booking_time = $_POST['booking_time'];
 $duration = intval($_POST['duration']);
+$payment_method = trim($_POST['payment_method'] ?? 'qris');
+$payment_method = in_array($payment_method, ['qris', 'dana']) ? $payment_method : 'qris';
 if (!$lapangan_id || !$booking_date || !$booking_time || $duration <= 0) {
     header('Location: ' . BASE_URL . '/user/index.php');
     exit;
 }
 $conn = db();
+if ($conn->query("SHOW COLUMNS FROM bookings LIKE 'payment_method'")->num_rows === 0) {
+    $conn->query("ALTER TABLE bookings ADD COLUMN payment_method VARCHAR(50) NOT NULL DEFAULT 'qris'");
+}
 $stmt = $conn->prepare('SELECT price FROM lapangan WHERE id = ?');
 $stmt->bind_param('i', $lapangan_id);
 $stmt->execute();
@@ -38,8 +43,8 @@ if ($check->num_rows > 0) {
     exit;
 }
 $check->close();
-$stmt = $conn->prepare('INSERT INTO bookings (user_id, lapangan_id, booking_date, booking_time, duration, total_price, booking_status, payment_status, created_at) VALUES (?, ?, ?, ?, ?, ?, "pending", "unpaid", NOW())');
-$stmt->bind_param('iissid', $_SESSION['user']['id'], $lapangan_id, $booking_date, $booking_time, $duration, $total);
+$stmt = $conn->prepare('INSERT INTO bookings (user_id, lapangan_id, booking_date, booking_time, duration, total_price, payment_method, booking_status, payment_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, "pending", "unpaid", NOW())');
+$stmt->bind_param('iissids', $_SESSION['user']['id'], $lapangan_id, $booking_date, $booking_time, $duration, $total, $payment_method);
 $stmt->execute();
 $stmt->close();
 $conn->close();

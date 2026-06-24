@@ -2,19 +2,42 @@
 require_once __DIR__ . '/../config.php';
 ensure_admin();
 $conn = db();
+$hasImageColumn = $conn->query("SHOW COLUMNS FROM lapangan LIKE 'image'")->num_rows > 0;
+if (!$hasImageColumn) {
+    $conn->query("ALTER TABLE lapangan ADD COLUMN image VARCHAR(255) NULL");
+    $hasImageColumn = true;
+}
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $editIdPost = intval($_POST['edit_id'] ?? 0);
     $name = trim($_POST['name']);
     $price = floatval($_POST['price']);
     $description = trim($_POST['description']);
+    $image = trim($_POST['image'] ?? '');
     if ($name === '' || $price <= 0) {
         $message = 'Nama lapangan dan harga harus diisi dengan benar.';
     } else {
-        $stmt = $conn->prepare('INSERT INTO lapangan (name, price, description) VALUES (?, ?, ?)');
-        $stmt->bind_param('sds', $name, $price, $description);
+        if ($editIdPost > 0) {
+            if ($hasImageColumn) {
+                $stmt = $conn->prepare('UPDATE lapangan SET name = ?, price = ?, description = ?, image = ? WHERE id = ?');
+                $stmt->bind_param('sdssi', $name, $price, $description, $image, $editIdPost);
+            } else {
+                $stmt = $conn->prepare('UPDATE lapangan SET name = ?, price = ?, description = ? WHERE id = ?');
+                $stmt->bind_param('sdsi', $name, $price, $description, $editIdPost);
+            }
+            $message = 'Lapangan berhasil diperbarui.';
+        } else {
+            if ($hasImageColumn) {
+                $stmt = $conn->prepare('INSERT INTO lapangan (name, price, description, image) VALUES (?, ?, ?, ?)');
+                $stmt->bind_param('sdss', $name, $price, $description, $image);
+            } else {
+                $stmt = $conn->prepare('INSERT INTO lapangan (name, price, description) VALUES (?, ?, ?)');
+                $stmt->bind_param('sds', $name, $price, $description);
+            }
+            $message = 'Lapangan berhasil ditambahkan.';
+        }
         $stmt->execute();
         $stmt->close();
-        $message = 'Lapangan berhasil ditambahkan.';
     }
 }
 if (isset($_GET['delete'])) {
@@ -24,6 +47,16 @@ if (isset($_GET['delete'])) {
     $stmt->execute();
     $stmt->close();
     $message = 'Lapangan berhasil dihapus.';
+}
+$editLapangan = null;
+$editId = 0;
+if (isset($_GET['edit'])) {
+    $editId = intval($_GET['edit']);
+    $stmt = $conn->prepare('SELECT * FROM lapangan WHERE id = ?');
+    $stmt->bind_param('i', $editId);
+    $stmt->execute();
+    $editLapangan = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 }
 $result = $conn->query('SELECT * FROM lapangan ORDER BY name');
 ?>
@@ -48,20 +81,34 @@ $result = $conn->query('SELECT * FROM lapangan ORDER BY name');
     <?php endif; ?>
     <section class="card-section">
         <form action="lapangan.php" method="post" class="box-form">
-            <h2>Tambah Lapangan</h2>
+            <h2><?php echo $editLapangan ? 'Edit Lapangan' : 'Tambah Lapangan'; ?></h2>
+            <input type="hidden" name="edit_id" value="<?php echo escape($editLapangan['id'] ?? 0); ?>">
             <label>Nama Lapangan</label>
-            <input type="text" name="name" required>
+            <input type="text" name="name" value="<?php echo escape($editLapangan['name'] ?? ''); ?>" required>
             <label>Harga per Jam (Rp)</label>
-            <input type="number" name="price" min="1" required>
+            <input type="number" name="price" min="1" value="<?php echo escape($editLapangan['price'] ?? ''); ?>" required>
             <label>Deskripsi</label>
-            <textarea name="description"></textarea>
-            <button type="submit">Simpan</button>
+            <textarea name="description"><?php echo escape($editLapangan['description'] ?? ''); ?></textarea>
+            <?php if ($hasImageColumn): ?>
+                <label>URL Gambar</label>
+                <input type="text" name="image" placeholder="https://..." value="<?php echo escape($editLapangan['image'] ?? ''); ?>">
+            <?php endif; ?>
+            <button type="submit"><?php echo $editLapangan ? 'Perbarui' : 'Simpan'; ?></button>
+            <?php if ($editLapangan): ?>
+                <a class="danger" href="lapangan.php" style="display:inline-block;margin-top:12px;">Batal</a>
+            <?php endif; ?>
         </form>
         <div class="table-wrap">
             <h2>Daftar Lapangan</h2>
             <table>
                 <thead>
-                <tr><th>Nama</th><th>Harga</th><th>Deskripsi</th><th>Aksi</th></tr>
+                <tr>
+                    <th>Nama</th>
+                    <th>Harga</th>
+                    <th>Deskripsi</th>
+                    <?php if ($hasImageColumn): ?><th>Gambar</th><?php endif; ?>
+                    <th>Aksi</th>
+                </tr>
                 </thead>
                 <tbody>
                 <?php while ($row = $result->fetch_assoc()): ?>
@@ -69,7 +116,15 @@ $result = $conn->query('SELECT * FROM lapangan ORDER BY name');
                         <td><?php echo escape($row['name']); ?></td>
                         <td>Rp <?php echo number_format($row['price'], 0, ',', '.'); ?></td>
                         <td><?php echo escape($row['description']); ?></td>
-                        <td><a class="danger" href="lapangan.php?delete=<?php echo escape($row['id']); ?>" onclick="return confirm('Hapus lapangan?');">Hapus</a></td>
+                        <?php if ($hasImageColumn): ?>
+                            <td>
+                                <img class="lapangan-thumb" src="<?php echo escape($row['image'] ?: 'https://images.unsplash.com/photo-1505842465776-3bd2144b5caa?auto=format&fit=crop&w=400&q=80'); ?>" alt="<?php echo escape($row['name']); ?>">
+                            </td>
+                        <?php endif; ?>
+                        <td>
+                            <a href="lapangan.php?edit=<?php echo escape($row['id']); ?>">Edit</a> |
+                            <a class="danger" href="lapangan.php?delete=<?php echo escape($row['id']); ?>" onclick="return confirm('Hapus lapangan?');">Hapus</a>
+                        </td>
                     </tr>
                 <?php endwhile; ?>
                 </tbody>
