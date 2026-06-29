@@ -1,7 +1,21 @@
 <?php
 require_once __DIR__ . '/../config.php';
 ensure_user();
+
+$booking_message = '';
+$booking_error = '';
+if (!empty($_SESSION['booking_message'])) {
+    $booking_message = $_SESSION['booking_message'];
+    unset($_SESSION['booking_message']);
+}
+if (!empty($_SESSION['booking_error'])) {
+    $booking_error = $_SESSION['booking_error'];
+    unset($_SESSION['booking_error']);
+}
+
 $conn = db();
+ensure_booking_payment_schema($conn);
+expire_unpaid_bookings($conn);
 $fieldsResult = $conn->query('SELECT * FROM lapangan ORDER BY name');
 $fields = $fieldsResult ? $fieldsResult->fetch_all(MYSQLI_ASSOC) : [];
 $bookings = $conn->prepare('SELECT b.*, l.name AS lapangan_name FROM bookings b JOIN lapangan l ON b.lapangan_id = l.id WHERE b.user_id = ? ORDER BY b.booking_date DESC, b.booking_time DESC');
@@ -63,6 +77,7 @@ function getLapanganImage($field) {
             </div>
             <div class="box-form">
                 <h2>Form Booking</h2>
+                <p class="booking-note">Perhatian: jika jam atau tanggal sudah dibooking, Anda akan mendapat notifikasi supaya tidak salah pilih jadwal.</p>
                 <form action="book.php" method="post">
                     <label>Lapangan</label>
                     <select name="lapangan_id" required>
@@ -98,7 +113,7 @@ function getLapanganImage($field) {
                                 <h3><?php echo escape($row['lapangan_name']); ?></h3>
                                 <p><?php echo escape($row['booking_date']); ?> · <?php echo escape($row['booking_time']); ?> · <?php echo escape($row['duration']); ?> jam</p>
                             </div>
-                            <span class="status-pill status-<?php echo escape($row['payment_status']); ?>"><?php echo escape(ucfirst($row['payment_status'])); ?></span>
+                            <span class="status-pill <?php echo escape(payment_status_class($row['payment_status'])); ?>"><?php echo escape(payment_status_label($row['payment_status'])); ?></span>
                         </div>
                         <div class="history-card-body">
                             <div class="history-meta">
@@ -115,7 +130,7 @@ function getLapanganImage($field) {
                             </div>
                         </div>
                         <div class="history-card-footer">
-                            <?php if ($row['payment_status'] === 'unpaid' && $row['booking_status'] === 'pending'): ?>
+                            <?php if ($row['payment_status'] === 'menunggu_pembayaran' && $row['booking_status'] === 'pending'): ?>
                                 <a class="pay-link" href="pay.php?id=<?php echo escape($row['id']); ?>">Bayar Sekarang</a>
                             <?php else: ?>
                                 <span class="history-note">Tidak ada tindakan</span>
@@ -131,6 +146,15 @@ function getLapanganImage($field) {
         </div>
     </section>
 </div>
+<?php if ($booking_error !== '' || $booking_message !== ''): ?>
+    <div id="popup-notification" class="popup-notification">
+        <div class="popup-card <?php echo $booking_error !== '' ? 'popup-error' : 'popup-success'; ?>">
+            <button type="button" class="popup-close" aria-label="Tutup">×</button>
+            <h2><?php echo $booking_error !== '' ? 'Pemberitahuan' : 'Berhasil'; ?></h2>
+            <p><?php echo escape($booking_error !== '' ? $booking_error : $booking_message); ?></p>
+        </div>
+    </div>
+<?php endif; ?>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const bookingTab = document.querySelector('.tab-button[data-tab="booking"]');
@@ -153,6 +177,21 @@ function getLapanganImage($field) {
         });
 
         switchTab('booking');
+
+        const popup = document.getElementById('popup-notification');
+        if (popup) {
+            const closeButton = popup.querySelector('.popup-close');
+            if (closeButton) {
+                closeButton.addEventListener('click', function() {
+                    popup.style.display = 'none';
+                });
+            }
+            popup.addEventListener('click', function(event) {
+                if (event.target === popup) {
+                    popup.style.display = 'none';
+                }
+            });
+        }
     });
 </script>
 </body>

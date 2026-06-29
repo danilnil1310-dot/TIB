@@ -2,14 +2,19 @@
 require_once __DIR__ . '/../config.php';
 ensure_admin();
 $conn = db();
+ensure_booking_payment_schema($conn);
+expire_unpaid_bookings($conn);
 $message = '';
 if (isset($_GET['action'], $_GET['id'])) {
     $id = intval($_GET['id']);
     if ($_GET['action'] === 'confirm') {
-        $stmt = $conn->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'paid' WHERE id = ?");
-        $message = 'Booking telah dikonfirmasi dan dibayar.';
+        $stmt = $conn->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'berhasil' WHERE id = ?");
+        $message = 'Booking telah dikonfirmasi dan pembayaran dinyatakan berhasil.';
+    } elseif ($_GET['action'] === 'fail') {
+        $stmt = $conn->prepare("UPDATE bookings SET booking_status = 'canceled', payment_status = 'gagal' WHERE id = ?");
+        $message = 'Status pembayaran diubah menjadi gagal.';
     } elseif ($_GET['action'] === 'cancel') {
-        $stmt = $conn->prepare("UPDATE bookings SET booking_status = 'canceled' WHERE id = ?");
+        $stmt = $conn->prepare("UPDATE bookings SET booking_status = 'canceled', payment_status = 'gagal' WHERE id = ?");
         $message = 'Booking dibatalkan.';
     }
     if (isset($stmt)) {
@@ -28,47 +33,61 @@ $result = $conn->query($sql);
     <title>Admin - Booking</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
-<body>
-<div class="container">
-    <h1>Kelola Booking</h1>
-    <nav class="nav-bar">
-        <a href="index.php">Dashboard</a>
-        <a href="lapangan.php">Kelola Lapangan</a>
-        <a href="bookings.php">Kelola Booking</a>
-        <a href="../logout.php">Logout</a>
-    </nav>
-    <?php if ($message !== ''): ?>
-        <div class="success"><?php echo escape($message); ?></div>
-    <?php endif; ?>
-    <div class="table-wrap">
-        <table>
-            <thead>
-            <tr><th>User</th><th>Lapangan</th><th>Tanggal</th><th>Jam</th><th>Durasi</th><th>Total</th><th>Status</th><th>Pembayaran</th><th>Aksi</th></tr>
-            </thead>
-            <tbody>
-            <?php while ($row = $result->fetch_assoc()): ?>
-                <tr>
-                    <td><?php echo escape($row['user_name']); ?></td>
-                    <td><?php echo escape($row['lapangan_name']); ?></td>
-                    <td><?php echo escape($row['booking_date']); ?></td>
-                    <td><?php echo escape($row['booking_time']); ?></td>
-                    <td><?php echo escape($row['duration']); ?> jam</td>
-                    <td>Rp <?php echo number_format($row['total_price'], 0, ',', '.'); ?></td>
-                    <td><?php echo escape(ucfirst($row['booking_status'])); ?></td>
-                    <td><?php echo escape(ucfirst($row['payment_status'])); ?></td>
-                    <td>
-                        <?php if ($row['booking_status'] === 'pending'): ?>
-                            <a href="bookings.php?action=confirm&id=<?php echo escape($row['id']); ?>">Konfirmasi</a>
-                            <a class="danger" href="bookings.php?action=cancel&id=<?php echo escape($row['id']); ?>" onclick="return confirm('Batalkan booking?');">Batalkan</a>
-                        <?php else: ?>
-                            -
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            <?php endwhile; ?>
-            </tbody>
-        </table>
-    </div>
+<body class="admin-page">
+<div class="admin-shell">
+    <aside class="admin-sidebar">
+        <div class="admin-brand">
+            <h2>Futsal Admin</h2>
+            <p>Panel manajemen</p>
+        </div>
+        <nav class="admin-nav">
+            <a href="index.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'index.php' ? 'active' : ''; ?>">Dashboard</a>
+            <a href="lapangan.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'lapangan.php' ? 'active' : ''; ?>">Kelola Lapangan</a>
+            <a href="bookings.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'bookings.php' ? 'active' : ''; ?>">Kelola Booking</a>
+            <a href="../logout.php" class="logout-link">Logout</a>
+        </nav>
+    </aside>
+    <main class="admin-main">
+        <div class="container admin-content">
+            <header class="admin-header">
+                <h1>Kelola Booking</h1>
+                <p>Konfirmasi atau batalkan booking pelanggan.</p>
+            </header>
+            <?php if ($message !== ''): ?>
+                <div class="success"><?php echo escape($message); ?></div>
+            <?php endif; ?>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr><th>User</th><th>Lapangan</th><th>Tanggal</th><th>Jam</th><th>Durasi</th><th>Total</th><th>Status</th><th>Pembayaran</th><th>Aksi</th></tr>
+                    </thead>
+                    <tbody>
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?php echo escape($row['user_name']); ?></td>
+                            <td><?php echo escape($row['lapangan_name']); ?></td>
+                            <td><?php echo escape($row['booking_date']); ?></td>
+                            <td><?php echo escape($row['booking_time']); ?></td>
+                            <td><?php echo escape($row['duration']); ?> jam</td>
+                            <td>Rp <?php echo number_format($row['total_price'], 0, ',', '.'); ?></td>
+                            <td><?php echo escape(ucfirst($row['booking_status'])); ?></td>
+                            <td><span class="status-pill <?php echo escape(payment_status_class($row['payment_status'])); ?>"><?php echo escape(payment_status_label($row['payment_status'])); ?></span></td>
+                            <td>
+                                <?php if ($row['booking_status'] === 'pending' && $row['payment_status'] === 'menunggu_pembayaran'): ?>
+                                    <a href="bookings.php?action=confirm&id=<?php echo escape($row['id']); ?>">Konfirmasi</a>
+                                    <a href="bookings.php?action=fail&id=<?php echo escape($row['id']); ?>" onclick="return confirm('Tandai pembayaran sebagai gagal?');">Tandai Gagal</a>
+                                    <a class="danger" href="bookings.php?action=cancel&id=<?php echo escape($row['id']); ?>" onclick="return confirm('Batalkan booking?');">Batalkan</a>
+                                <?php else: ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
 </div>
 </body>
 </html>

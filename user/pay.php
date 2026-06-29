@@ -7,20 +7,22 @@ if (!isset($_GET['id'])) {
 }
 $id = intval($_GET['id']);
 $conn = db();
+ensure_booking_payment_schema($conn);
+expire_unpaid_bookings($conn);
 $stmt = $conn->prepare('SELECT b.*, l.name AS lapangan_name FROM bookings b JOIN lapangan l ON b.lapangan_id = l.id WHERE b.id = ? AND b.user_id = ?');
 $stmt->bind_param('ii', $id, $_SESSION['user']['id']);
 $stmt->execute();
 $result = $stmt->get_result();
 $booking = $result->fetch_assoc();
 $stmt->close();
-if (!$booking || $booking['payment_status'] !== 'unpaid') {
+if (!$booking || $booking['payment_status'] !== 'menunggu_pembayaran') {
     $conn->close();
     header('Location: ' . BASE_URL . '/user/index.php');
     exit;
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Simulate payment succeeded from gateway
-    $stmt = $conn->prepare('UPDATE bookings SET payment_status = "paid", booking_status = "confirmed" WHERE id = ?');
+    $stmt = $conn->prepare('UPDATE bookings SET payment_status = "berhasil", booking_status = "confirmed" WHERE id = ?');
     $stmt->bind_param('i', $id);
     $stmt->execute();
     $stmt->close();

@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS bookings (
   total_price DECIMAL(12,2) NOT NULL,
   payment_method VARCHAR(50) NOT NULL DEFAULT 'qris',
   booking_status ENUM('pending','confirmed','canceled') NOT NULL DEFAULT 'pending',
-  payment_status ENUM('unpaid','paid') NOT NULL DEFAULT 'unpaid',
+  payment_status ENUM('menunggu_pembayaran','berhasil','gagal','kadaluarsa') NOT NULL DEFAULT 'menunggu_pembayaran',
+  payment_expires_at DATETIME NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (lapangan_id) REFERENCES lapangan(id) ON DELETE CASCADE
