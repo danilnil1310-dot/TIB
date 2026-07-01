@@ -41,10 +41,10 @@ $result = $conn->query($sql);
             <p>Panel manajemen</p>
         </div>
         <nav class="admin-nav">
-            <a href="index.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'index.php' ? 'active' : ''; ?>">Dashboard</a>
-            <a href="lapangan.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'lapangan.php' ? 'active' : ''; ?>">Kelola Lapangan</a>
-            <a href="bookings.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'bookings.php' ? 'active' : ''; ?>">Kelola Booking</a>
-            <a href="../logout.php" class="logout-link">Logout</a>
+            <a href="index.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'index.php' ? 'active' : ''; ?>"><span class="nav-icon">🏠</span> Dashboard</a>
+            <a href="lapangan.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'lapangan.php' ? 'active' : ''; ?>"><span class="nav-icon">🏟️</span> Kelola Lapangan</a>
+            <a href="bookings.php" class="<?php echo basename($_SERVER['PHP_SELF']) === 'bookings.php' ? 'active' : ''; ?>"><span class="nav-icon">📅</span> Kelola Booking</a>
+            <a href="../logout.php" class="logout-link"><span class="nav-icon">🚪</span> Logout</a>
         </nav>
     </aside>
     <main class="admin-main">

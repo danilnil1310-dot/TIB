@@ -15,6 +15,20 @@ $stmt->execute();
 $result = $stmt->get_result();
 $booking = $result->fetch_assoc();
 $stmt->close();
+if ($booking && $booking['payment_status'] === 'menunggu_pembayaran' && !empty($booking['payment_expires_at']) && strtotime($booking['payment_expires_at']) < time()) {
+    $conn->query("UPDATE bookings SET payment_status = 'kadaluarsa', booking_status = 'canceled' WHERE id = " . intval($id));
+    $booking['payment_status'] = 'kadaluarsa';
+    $booking['booking_status'] = 'canceled';
+}
+if (isset($_GET['action']) && $_GET['action'] === 'cancel') {
+    $cancelStmt = $conn->prepare('UPDATE bookings SET booking_status = "canceled", payment_status = "gagal" WHERE id = ? AND user_id = ? AND booking_status = "pending" AND payment_status = "menunggu_pembayaran"');
+    $cancelStmt->bind_param('ii', $id, $_SESSION['user']['id']);
+    $cancelStmt->execute();
+    $cancelStmt->close();
+    $conn->close();
+    header('Location: ' . BASE_URL . '/user/index.php');
+    exit;
+}
 if (!$booking || $booking['payment_status'] !== 'menunggu_pembayaran') {
     $conn->close();
     header('Location: ' . BASE_URL . '/user/index.php');
@@ -31,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 $conn->close();
+$remainingSeconds = !empty($booking['payment_expires_at']) ? max(0, strtotime($booking['payment_expires_at']) - time()) : null;
+$remainingMinutes = $remainingSeconds !== null ? intdiv($remainingSeconds, 60) : 0;
+$remainingSecondPart = $remainingSeconds !== null ? ($remainingSeconds % 60) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -52,6 +69,11 @@ $conn->close();
         <p>Jam: <strong><?php echo escape($booking['booking_time']); ?></strong></p>
         <p>Total bayar: <strong>Rp <?php echo number_format($booking['total_price'], 0, ',', '.'); ?></strong></p>
         <p>Metode pembayaran: <strong><?php echo escape(strtoupper($booking['payment_method'])); ?></strong></p>
+        <p>Status pembayaran: <strong><?php echo escape(payment_status_label($booking['payment_status'])); ?></strong></p>
+        <p>Batas pembayaran: <strong><?php echo escape($booking['payment_expires_at']); ?></strong></p>
+        <?php if ($remainingSeconds !== null): ?>
+            <p>Waktu tersisa: <strong><?php echo sprintf('%02d:%02d', $remainingMinutes, $remainingSecondPart); ?></strong></p>
+        <?php endif; ?>
         <?php
             $qrText = $booking['payment_method'] === 'dana'
                 ? 'DANA:085712345678;NOMINAL=' . number_format($booking['total_price'], 0, '', '')
@@ -71,6 +93,9 @@ $conn->close();
         <form action="pay.php?id=<?php echo escape($id); ?>" method="post">
             <button type="submit">Saya sudah bayar</button>
         </form>
+        <p style="margin-top: 12px;">
+            <a class="danger" href="pay.php?id=<?php echo escape($id); ?>&action=cancel" onclick="return confirm('Batalkan transaksi booking ini?');">Batalkan transaksi</a>
+        </p>
     </div>
 </div>
 </body>

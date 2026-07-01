@@ -6,6 +6,7 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_NAME', 'futsal_booking');
 define('BASE_URL', '/futsal');
+define('PAYMENT_EXPIRY_MINUTES', 5);
 
 function db() {
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);

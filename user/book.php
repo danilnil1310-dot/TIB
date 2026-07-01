@@ -66,8 +66,9 @@ if ($conflictMessage !== '') {
     exit;
 }
 
-$stmt = $conn->prepare('INSERT INTO bookings (user_id, lapangan_id, booking_date, booking_time, duration, total_price, payment_method, booking_status, payment_status, payment_expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, "pending", "menunggu_pembayaran", DATE_ADD(NOW(), INTERVAL 30 MINUTE), NOW())');
-$stmt->bind_param('iissids', $_SESSION['user']['id'], $lapangan_id, $booking_date, $booking_time, $duration, $total, $payment_method);
+$expiresAt = (new DateTimeImmutable('now'))->modify('+' . PAYMENT_EXPIRY_MINUTES . ' minutes')->format('Y-m-d H:i:s');
+$stmt = $conn->prepare('INSERT INTO bookings (user_id, lapangan_id, booking_date, booking_time, duration, total_price, payment_method, booking_status, payment_status, payment_expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, "pending", "menunggu_pembayaran", ?, NOW())');
+$stmt->bind_param('iissidss', $_SESSION['user']['id'], $lapangan_id, $booking_date, $booking_time, $duration, $total, $payment_method, $expiresAt);
 $stmt->execute();
 $stmt->close();
 $conn->close();
