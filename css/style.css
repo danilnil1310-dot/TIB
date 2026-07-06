@@ -82,6 +82,7 @@ body.user-page .container {
     color: #475569;
     font-size: 0.98rem;
 }
+.page-body {
     display: grid;
     gap: 32px;
 }
@@ -226,7 +227,19 @@ h1 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 38px;
+    height: 38px;
     margin-right: 0.45rem;
+    border-radius: 12px;
+    background: rgba(59,130,246,0.12);
+    color: #0c67ff;
+    flex-shrink: 0;
+}
+.nav-icon svg,
+.card-icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
 }
 .admin-nav a,
 .logout-link,
@@ -340,6 +353,57 @@ body.admin-page {
     margin-top: 0;
     margin-bottom: 20px;
     color: #0f172a;
+}
+.box-form form {
+    display: grid;
+    gap: 6px;
+}
+#profile-section {
+    margin-bottom: 24px;
+}
+.section-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.45rem;
+    color: #0f172a;
+    margin: 0 0 20px;
+}
+.section-heading-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(59,130,246,0.12);
+    color: #0c67ff;
+    flex-shrink: 0;
+}
+.section-heading-icon svg {
+    width: 18px;
+    height: 18px;
+}
+.history-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.history-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+.history-card-footer .danger {
+    color: #ef4444;
+    text-decoration: none;
+    font-weight: 700;
+}
+.history-card-footer .danger:hover {
+    text-decoration: underline;
 }
 .alert {
     padding: 12px 14px;
@@ -557,17 +621,38 @@ thead {
 }
 .pay-link {
     display: inline-flex;
-    padding: 0.5em 0.9em;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0.75em 1.1em;
     border-radius: 999px;
     background: linear-gradient(135deg, #0c67ff 0%, #4f46e5 100%);
     color: #ffffff;
     text-decoration: none;
     font-weight: 700;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 .pay-link:hover {
     transform: translateY(-1px);
     box-shadow: 0 12px 30px rgba(12, 103, 255, 0.2);
+}
+.history-card-footer .danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75em 1.1em;
+    border-radius: 999px;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    background: rgba(254, 226, 226, 0.7);
+    text-decoration: none;
+    font-weight: 700;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.history-card-footer .danger:hover {
+    transform: translateY(-1px);
+    background: rgba(254, 226, 226, 0.95);
+    box-shadow: 0 10px 24px rgba(239, 68, 68, 0.14);
 }
 .cards {
     display: grid;
@@ -657,7 +742,25 @@ thead {
     color: #a12a2a;
 }
 .danger {
-    color: #d00;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75em 1em;
+    border-radius: 999px;
+    background: rgba(254, 226, 226, 0.8);
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.24);
+    text-decoration: none;
+    font-weight: 700;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.danger:hover {
+    transform: translateY(-1px);
+    background: rgba(254, 226, 226, 1);
+    box-shadow: 0 10px 22px rgba(239, 68, 68, 0.12);
+}
+.box-form .danger {
+    margin-top: 12px;
 }
 @media(max-width: 960px) {
     .page-header {
@@ -756,13 +859,18 @@ thead {
 .facility-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
+    gap: 8px;
+    padding: 8px 12px;
     border-radius: 999px;
     background: #eff6ff;
     color: #1d4ed8;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 700;
+}
+.facility-pill svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
 }
 .history-cards {
     display: grid;

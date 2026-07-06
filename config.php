@@ -21,6 +21,32 @@ function escape($value) {
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
+function ensure_settings_schema($conn) {
+    $conn->query("CREATE TABLE IF NOT EXISTS settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        setting_key VARCHAR(100) NOT NULL UNIQUE,
+        setting_value TEXT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )");
+}
+
+function get_setting($conn, $key, $default = '') {
+    $stmt = $conn->prepare('SELECT setting_value FROM settings WHERE setting_key = ?');
+    $stmt->bind_param('s', $key);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+    return $row['setting_value'] ?? $default;
+}
+
+function save_setting($conn, $key, $value) {
+    $stmt = $conn->prepare('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP');
+    $stmt->bind_param('ss', $key, $value);
+    $stmt->execute();
+    $stmt->close();
+}
+
 function payment_status_label($status) {
     $labels = [
         'menunggu_pembayaran' => 'Menunggu Pembayaran',

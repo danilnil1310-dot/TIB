@@ -43,4 +43,3 @@ if (!empty($_SESSION['user'])) {
 </div>
 </body>
 </html>
-

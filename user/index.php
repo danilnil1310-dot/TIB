@@ -4,6 +4,8 @@ ensure_user();
 
 $booking_message = '';
 $booking_error = '';
+$profile_message = '';
+$profile_error = '';
 if (!empty($_SESSION['booking_message'])) {
     $booking_message = $_SESSION['booking_message'];
     unset($_SESSION['booking_message']);
@@ -12,10 +14,64 @@ if (!empty($_SESSION['booking_error'])) {
     $booking_error = $_SESSION['booking_error'];
     unset($_SESSION['booking_error']);
 }
+if (!empty($_SESSION['profile_message'])) {
+    $profile_message = $_SESSION['profile_message'];
+    unset($_SESSION['profile_message']);
+}
+if (!empty($_SESSION['profile_error'])) {
+    $profile_error = $_SESSION['profile_error'];
+    unset($_SESSION['profile_error']);
+}
 
 $conn = db();
+ensure_settings_schema($conn);
 ensure_booking_payment_schema($conn);
 expire_unpaid_bookings($conn);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['profile_update'])) {
+    $profileName = trim($_POST['profile_name'] ?? '');
+    $profileUsername = trim($_POST['profile_username'] ?? '');
+    $profilePassword = trim($_POST['profile_password'] ?? '');
+    $profileConfirmPassword = trim($_POST['profile_confirm_password'] ?? '');
+
+    if ($profileName === '' || $profileUsername === '') {
+        $_SESSION['profile_error'] = 'Nama lengkap dan username wajib diisi.';
+    } elseif ($profilePassword !== '' && $profilePassword !== $profileConfirmPassword) {
+        $_SESSION['profile_error'] = 'Konfirmasi password tidak cocok.';
+    } else {
+        $checkStmt = $conn->prepare('SELECT id FROM users WHERE username = ? AND id != ?');
+        $checkStmt->bind_param('si', $profileUsername, $_SESSION['user']['id']);
+        $checkStmt->execute();
+        $checkStmt->store_result();
+
+        if ($checkStmt->num_rows > 0) {
+            $_SESSION['profile_error'] = 'Username sudah digunakan oleh akun lain.';
+        } else {
+            $checkStmt->close();
+            if ($profilePassword !== '') {
+                $passwordHash = password_hash($profilePassword, PASSWORD_DEFAULT);
+                $updateStmt = $conn->prepare('UPDATE users SET name = ?, username = ?, password = ? WHERE id = ?');
+                $updateStmt->bind_param('sssi', $profileName, $profileUsername, $passwordHash, $_SESSION['user']['id']);
+            } else {
+                $updateStmt = $conn->prepare('UPDATE users SET name = ?, username = ? WHERE id = ?');
+                $updateStmt->bind_param('ssi', $profileName, $profileUsername, $_SESSION['user']['id']);
+            }
+            $updateStmt->execute();
+            $updateStmt->close();
+
+            $_SESSION['user']['name'] = $profileName;
+            $_SESSION['user']['username'] = $profileUsername;
+            $_SESSION['profile_message'] = 'Profil berhasil diperbarui.';
+        }
+
+        $checkStmt->close();
+    }
+
+    $conn->close();
+    header('Location: ' . BASE_URL . '/user/index.php');
+    exit;
+}
+
 if (isset($_GET['cancel_id'])) {
     $cancelId = intval($_GET['cancel_id']);
     $cancelStmt = $conn->prepare('UPDATE bookings SET booking_status = "canceled", payment_status = "gagal" WHERE id = ? AND user_id = ? AND booking_status = "pending" AND payment_status = "menunggu_pembayaran"');
@@ -61,6 +117,13 @@ $bookings->execute();
 $bookingsResult = $bookings->get_result();
 $bookings->close();
 
+$settings = [
+    'place_name' => get_setting($conn, 'place_name', 'Futsal Admin'),
+    'location' => get_setting($conn, 'location', 'Alamat belum diatur'),
+    'contact' => get_setting($conn, 'contact', 'Kontak belum diatur'),
+    'operating_hours' => get_setting($conn, 'operating_hours', 'Jam operasional belum diatur'),
+];
+
 function getLapanganImage($field) {
     if (!empty($field['image'])) {
         return $field['image'];
@@ -90,27 +153,57 @@ function getLapanganImage($field) {
             <h1>Booking Lapangan</h1>
             <p class="subtitle">Halo, <?php echo escape($_SESSION['user']['name']); ?>. Pilih lapangan, jadwal, dan metode pembayaran untuk memesan dengan cepat.</p>
         </div>
-        <a class="logout-button" href="../logout.php"><span class="nav-icon">🚪</span> Logout</a>
+        <a class="logout-button" href="../logout.php"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span> Logout</a>
     </header>
+    <?php if ($profile_error !== '' || $profile_message !== ''): ?>
+        <div class="alert <?php echo $profile_error !== '' ? 'alert-error' : 'alert-success'; ?>">
+            <?php echo escape($profile_error !== '' ? $profile_error : $profile_message); ?>
+        </div>
+    <?php endif; ?>
     <nav class="nav-bar user-menu">
         <div class="tab-group">
-            <button type="button" class="tab-button active" data-tab="booking"><span class="nav-icon">📝</span> Booking</button>
-            <button type="button" class="tab-button" data-tab="history"><span class="nav-icon">🧾</span> Riwayat Transaksi</button>
+            <button type="button" class="tab-button active" data-tab="booking"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h4"/></svg></span> Booking</button>
+            <button type="button" class="tab-button" data-tab="history"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a8 8 0 1 0 8 8"/><path d="M12 8v4l3 2"/></svg></span> Riwayat Transaksi</button>
+            <button type="button" class="tab-button" data-tab="profile"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 20a8 8 0 0 1 16 0"/></svg></span> Profil</button>
         </div>
-        <div class="quick-pill">⚡ Cepat & aman</div>
     </nav>
+    <section id="profile-section" class="box-form hidden">
+        <h2 class="section-heading"><span class="section-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 20a8 8 0 0 1 16 0"/></svg></span> Pengaturan Profil</h2>
+        <p class="booking-note">Perbarui data akun Anda dengan cepat tanpa meninggalkan halaman ini.</p>
+        <form action="index.php" method="post">
+            <input type="hidden" name="profile_update" value="1">
+            <label>Nama Lengkap</label>
+            <input type="text" name="profile_name" value="<?php echo escape($_SESSION['user']['name']); ?>" required>
+            <label>Username</label>
+            <input type="text" name="profile_username" value="<?php echo escape($_SESSION['user']['username']); ?>" required>
+            <label>Password Baru (opsional)</label>
+            <input type="password" name="profile_password" autocomplete="new-password">
+            <label>Konfirmasi Password Baru</label>
+            <input type="password" name="profile_confirm_password" autocomplete="new-password">
+            <button type="submit">Simpan Perubahan</button>
+        </form>
+    </section>
     <section id="booking-section" class="card-section">
         <div>
             <div class="dashboard-facilities">
                 <div class="facility-card">
                     <h3>Fasilitas Utama</h3>
                     <div class="facility-list">
-                        <span class="facility-pill">🚻 Toilet</span>
-                        <span class="facility-pill">🅿️ Parkir</span>
-                        <span class="facility-pill">💡 Wi-Fi</span>
-                        <span class="facility-pill">🍽️ Kantin</span>
-                        <span class="facility-pill">🧴 Ruang Ganti</span>
-                        <span class="facility-pill">🧕 Mushola</span>
+                        <span class="facility-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 11h8v6a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-6Z"/><path d="M10 11V8a2 2 0 0 1 4 0v3"/><path d="M7 20h10"/></svg>Toilet</span>
+                        <span class="facility-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8"/><path d="M7 17h10"/><path d="M7 13h10"/><rect x="3" y="17" width="2" height="4" rx="1"/><rect x="19" y="17" width="2" height="4" rx="1"/></svg>Parkir</span>
+                        <span class="facility-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/><path d="M12 6v-2"/><path d="M12 20v-2"/><path d="M6 12H4"/><path d="M20 12h-2"/><path d="M16.95 7.05l-1.4-1.4"/><path d="M7.45 16.95l-1.4-1.4"/><path d="M16.95 16.95l-1.4 1.4"/><path d="M7.45 7.05l-1.4 1.4"/></svg>Wi-Fi</span>
+                        <span class="facility-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14"/><path d="M6 11h12"/><path d="M8 15h8"/><path d="M10 19h4"/></svg>Kantin</span>
+                        <span class="facility-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h8"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M4 21h16"/></svg>Ruang Ganti</span>
+                        <span class="facility-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5h10"/><path d="M7 9h10"/><path d="M7 13h10"/><path d="M7 17h10"/><path d="M10 21h4"/><path d="M8 4a4 4 0 0 1 8 0v4"/></svg>Mushola</span>
+                    </div>
+                </div>
+                <div class="facility-card">
+                    <h3>Informasi Tempat</h3>
+                    <div class="facility-list">
+                        <span class="facility-pill">🏟️ <?php echo escape($settings['place_name']); ?></span>
+                        <span class="facility-pill">📍 <?php echo escape($settings['location']); ?></span>
+                        <span class="facility-pill">📞 <?php echo escape($settings['contact']); ?></span>
+                        <span class="facility-pill">🕒 <?php echo escape($settings['operating_hours']); ?></span>
                     </div>
                 </div>
             </div>
@@ -127,7 +220,7 @@ function getLapanganImage($field) {
                 <?php endforeach; ?>
             </div>
             <div class="box-form">
-                <h2>Form Booking</h2>
+                <h2 class="section-heading"><span class="section-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M12 3v18"/></svg></span> Form Booking</h2>
                 <p class="booking-note">Perhatian: jika jam atau tanggal sudah dibooking, Anda akan mendapat notifikasi supaya tidak salah pilih jadwal.</p>
                 <form action="book.php" method="post">
                     <label>Lapangan</label>
@@ -158,7 +251,7 @@ function getLapanganImage($field) {
         </div>
     </section>
     <section id="history-section" class="table-wrap hidden">
-        <h2>Riwayat Booking</h2>
+        <h2 class="section-heading"><span class="section-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 8h8v8H8z"/></svg></span> Riwayat Booking</h2>
         <div class="history-cards">
             <?php if ($bookingsResult->num_rows > 0): ?>
                 <?php while ($row = $bookingsResult->fetch_assoc()): ?>
@@ -223,8 +316,10 @@ function getLapanganImage($field) {
     document.addEventListener('DOMContentLoaded', function() {
         const bookingTab = document.querySelector('.tab-button[data-tab="booking"]');
         const historyTab = document.querySelector('.tab-button[data-tab="history"]');
+        const profileTab = document.querySelector('.tab-button[data-tab="profile"]');
         const bookingSection = document.getElementById('booking-section');
         const historySection = document.getElementById('history-section');
+        const profileSection = document.getElementById('profile-section');
         const buttons = document.querySelectorAll('.tab-button');
         const lapanganSelect = document.getElementById('lapangan_id');
         const dateInput = document.getElementById('booking_date');
@@ -235,8 +330,9 @@ function getLapanganImage($field) {
 
         function switchTab(tab) {
             buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
-            bookingSection.style.display = tab === 'booking' ? 'grid' : 'none';
-            historySection.style.display = tab === 'history' ? 'block' : 'none';
+            bookingSection.classList.toggle('hidden', tab !== 'booking');
+            historySection.classList.toggle('hidden', tab !== 'history');
+            profileSection.classList.toggle('hidden', tab !== 'profile');
         }
 
         bookingTab.addEventListener('click', function() {
@@ -244,6 +340,9 @@ function getLapanganImage($field) {
         });
         historyTab.addEventListener('click', function() {
             switchTab('history');
+        });
+        profileTab.addEventListener('click', function() {
+            switchTab('profile');
         });
 
         switchTab('booking');
